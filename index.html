@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Envelope Budget</title>
+  
+  <!-- PWA Manifest & Theme -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#10b981">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    /* Custom Scrollbar for a polished look */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    
+    /* Touch handling optimizations */
+    .touch-action-manipulation { touch-action: manipulation; }
+    
+    /* Modal transitions */
+    .modal-hidden { opacity: 0; pointer-events: none; transform: scale(0.95); transition: all 0.2s ease-in-out; }
+    .modal-visible { opacity: 1; pointer-events: auto; transform: scale(1); transition: all 0.2s ease-in-out; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-emerald-600 text-white shadow-md sticky top-0 z-10 pt-safe-top">
+    <div class="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div class="flex flex-col">
+        <h1 class="text-xl font-bold tracking-wide flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+          Envelopes
+        </h1>
+        <span class="text-emerald-100 text-sm mt-1">Total: <span id="total-balance" class="font-bold text-white">$0.00</span></span>
+      </div>
+      
+      <!-- Hidden by default, shown via JS if PWA criteria met -->
+      <button id="installAppBtn" class="hidden bg-white text-emerald-700 px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm active:scale-95 transition-transform touch-action-manipulation">
+        Install App
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-3xl w-full mx-auto p-4 flex flex-col gap-4 relative">
+    
+    <!-- Loading State -->
+    <div id="loader" class="flex justify-center items-center py-10">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+    </div>
+
+    <!-- Envelopes Grid -->
+    <div id="envelopes-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
+      <!-- Envelope Cards dynamically injected here -->
+    </div>
+
+    <!-- Floating Action Button (Create Envelope) -->
+    <button onclick="openModal('create-envelope-modal')" class="fixed bottom-6 right-6 bg-emerald-600 text-white p-4 rounded-full shadow-lg hover:bg-emerald-700 active:scale-90 transition-transform touch-action-manipulation z-10">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    </button>
+  </main>
+
+  <!-- Toast Notification System -->
+  <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-50">
+    Message
+  </div>
+
+  <!-- MODALS -->
+  <!-- Create Envelope Modal -->
+  <div id="create-envelope-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 modal-hidden backdrop-blur-sm px-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
+      <h2 class="text-xl font-bold mb-4">New Envelope</h2>
+      <input type="text" id="new-env-name" placeholder="E.g., Groceries" class="w-full border border-gray-300 p-3 rounded-xl mb-6 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('create-envelope-modal')" class="px-4 py-2 text-gray-600 font-medium active:bg-gray-100 rounded-lg">Cancel</button>
+        <button onclick="handleCreateEnvelope()" class="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg active:bg-emerald-700">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transaction Modal -->
+  <div id="transaction-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 modal-hidden backdrop-blur-sm px-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
+      <h2 id="tx-modal-title" class="text-xl font-bold mb-4">Record Transaction</h2>
+      <p id="tx-modal-env-name" class="text-sm text-gray-500 mb-4"></p>
+      
+      <div class="relative mb-6">
+        <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">$</span>
+        <input type="number" id="tx-amount" step="0.01" placeholder="0.00" class="w-full border border-gray-300 pl-8 p-3 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+      </div>
+      
+      <input type="hidden" id="tx-env-id">
+      <input type="hidden" id="tx-type">
+      
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('transaction-modal')" class="px-4 py-2 text-gray-600 font-medium active:bg-gray-100 rounded-lg">Cancel</button>
+        <button onclick="handleTransaction()" id="tx-submit-btn" class="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP LOGIC -->
+  <script>
+    // =========================================================================
+    // CONFIGURATION - PASTE YOUR APPS SCRIPT WEB APP URL HERE
+    // =========================================================================
+    const API_URL = 'https://script.google.com/macros/s/AKfycbykSo9AINFuCBga7gFn9DQ22h9M1sAMAlJlBGmS3Eh-257qFI7WTCa-AC3VhnWTk1JeNg/exec';
+    
+    // State
+    let envelopes = [];
+    
+    // =========================================================================
+    // PWA & INSTALL BUTTON LOGIC
+    // =========================================================================
+    let deferredPrompt;
+    const installBtn = document.getElementById('installAppBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      deferredPrompt = e;
+      // Show the install button
+      installBtn.classList.remove('hidden');
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        installBtn.classList.add('hidden');
+      }
+      deferredPrompt = null;
+    });
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('Service Worker registered successfully'))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+
+    // =========================================================================
+    // UI UTILITIES
+    // =========================================================================
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded shadow-lg transition-opacity duration-300 z-50 ${isError ? 'bg-red-600 text-white' : 'bg-gray-800 text-white'}`;
+      toast.style.opacity = '1';
+      setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+    }
+
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      modal.classList.remove('modal-hidden');
+      modal.classList.add('modal-visible');
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      modal.classList.remove('modal-visible');
+      modal.classList.add('modal-hidden');
+      
+      // Clear inputs
+      if(id === 'create-envelope-modal') document.getElementById('new-env-name').value = '';
+      if(id === 'transaction-modal') document.getElementById('tx-amount').value = '';
+    }
+
+    // =========================================================================
+    // API COMMUNICATION
+    // =========================================================================
+    async function apiRequest(action, data = {}) {
+      if(API_URL === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
+        showToast("Error: API_URL not configured.", true);
+        return null;
+      }
+      
+      try {
+        const payload = JSON.stringify({ action, data });
+        
+        // Using 'text/plain' to bypass complex CORS preflight issues
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+          body: payload,
+          redirect: 'follow'
+        });
+        
+        const result = await response.json();
+        if(result.success) return result.data;
+        
+        showToast(result.error || "An API error occurred", true);
+        return null;
+      } catch (error) {
+        showToast("Network Error: Could not connect to database.", true);
+        console.error(error);
+        return null;
+      }
+    }
+
+    // =========================================================================
+    // APP LOGIC & RENDERING
+    // =========================================================================
+    async function loadData() {
+      document.getElementById('loader').classList.remove('hidden');
+      document.getElementById('envelopes-container').classList.add('hidden');
+      
+      const data = await apiRequest('GET_DATA');
+      if (data) {
+        envelopes = data;
+        renderEnvelopes();
+      }
+      
+      document.getElementById('loader').classList.add('hidden');
+      document.getElementById('envelopes-container').classList.remove('hidden');
+    }
+
+    function renderEnvelopes() {
+      const container = document.getElementById('envelopes-container');
+      container.innerHTML = '';
+      
+      let total = 0;
+
+      if (envelopes.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center py-12 text-gray-500">
+            <p>No envelopes yet.</p>
+            <p class="text-sm mt-1">Tap the + button to create your first budget category!</p>
+          </div>
+        `;
+      }
+
+      envelopes.forEach(env => {
+        total += env.balance;
+        
+        // Format balance properly
+        const isNegative = env.balance < 0;
+        const balanceColor = isNegative ? 'text-red-600' : 'text-gray-800';
+        
+        const card = document.createElement('div');
+        card.className = "bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between";
+        card.innerHTML = `
+          <div class="flex justify-between items-start mb-4">
+            <h3 class="font-bold text-gray-700 text-lg line-clamp-1">${env.name}</h3>
+            <button onclick="confirmDelete('${env.id}')" class="text-gray-400 hover:text-red-500 p-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+            </button>
+          </div>
+          
+          <div class="text-3xl font-black ${balanceColor} mb-6 tracking-tight">
+            $${env.balance.toFixed(2)}
+          </div>
+          
+          <div class="grid grid-cols-2 gap-2 mt-auto">
+            <button onclick="prepareTransaction('${env.id}', '${env.name}', 'expense')" class="bg-red-50 text-red-600 py-2 rounded-xl font-semibold flex items-center justify-center gap-1 active:bg-red-100 touch-action-manipulation">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Spend
+            </button>
+            <button onclick="prepareTransaction('${env.id}', '${env.name}', 'add')" class="bg-emerald-50 text-emerald-600 py-2 rounded-xl font-semibold flex items-center justify-center gap-1 active:bg-emerald-100 touch-action-manipulation">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Fund
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      document.getElementById('total-balance').textContent = `$${total.toFixed(2)}`;
+    }
+
+    async function handleCreateEnvelope() {
+      const nameInput = document.getElementById('new-env-name');
+      const name = nameInput.value.trim();
+      
+      if(!name) { showToast("Name is required"); return; }
+      
+      closeModal('create-envelope-modal');
+      
+      // Optimistic UI Update placeholder
+      showToast("Creating...");
+      
+      const newEnv = await apiRequest('CREATE_ENVELOPE', { name });
+      if (newEnv) {
+        envelopes.push(newEnv);
+        renderEnvelopes();
+        showToast("Envelope created successfully!");
+      }
+    }
+
+    async function confirmDelete(id) {
+      if (confirm("Are you sure you want to delete this envelope? This cannot be undone.")) {
+        const result = await apiRequest('DELETE_ENVELOPE', { id });
+        if (result) {
+          envelopes = envelopes.filter(e => e.id !== id);
+          renderEnvelopes();
+          showToast("Envelope deleted");
+        }
+      }
+    }
+
+    function prepareTransaction(id, name, type) {
+      document.getElementById('tx-env-id').value = id;
+      document.getElementById('tx-type').value = type;
+      
+      const modalTitle = type === 'add' ? 'Add Funds' : 'Record Expense';
+      const submitBtn = document.getElementById('tx-submit-btn');
+      
+      document.getElementById('tx-modal-title').textContent = modalTitle;
+      document.getElementById('tx-modal-env-name').textContent = `Envelope: ${name}`;
+      
+      submitBtn.textContent = type === 'add' ? 'Add Money' : 'Deduct Money';
+      submitBtn.className = type === 'add' 
+        ? 'px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg active:bg-emerald-700' 
+        : 'px-4 py-2 bg-red-600 text-white font-medium rounded-lg active:bg-red-700';
+      
+      openModal('transaction-modal');
+    }
+
+    async function handleTransaction() {
+      const id = document.getElementById('tx-env-id').value;
+      const type = document.getElementById('tx-type').value;
+      const amount = parseFloat(document.getElementById('tx-amount').value);
+      
+      if (!amount || amount <= 0) {
+        showToast("Please enter a valid amount");
+        return;
+      }
+
+      closeModal('transaction-modal');
+      showToast("Updating balance...");
+
+      const result = await apiRequest('ADD_TRANSACTION', { envelopeId: id, amount, type });
+      
+      if (result) {
+        // Update local state
+        const envIndex = envelopes.findIndex(e => e.id === id);
+        if (envIndex > -1) {
+          envelopes[envIndex].balance = result.newBalance;
+          renderEnvelopes();
+          showToast("Transaction successful");
+        }
+      }
+    }
+
+    // Initialize App
+    loadData();
+  </script>
+</body>
+</html>
