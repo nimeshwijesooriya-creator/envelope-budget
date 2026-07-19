@@ -115,7 +115,7 @@
     // =========================================================================
     // CONFIGURATION - PASTE YOUR APPS SCRIPT WEB APP URL HERE
     // =========================================================================
-    const API_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbx_KWBgrmsxTEgIeTrl3j6o4l933QSf4CdKouY2J9-7AfzREh_nlBKILwSmhbOaJacFHw/exec';
     
     // State
     let envelopes = [];
@@ -187,7 +187,7 @@
     // API COMMUNICATION
     // =========================================================================
     async function apiRequest(action, data = {}) {
-      if(API_URL === 'https://script.google.com/macros/s/AKfycbz9bQ0eLxtnZUDfPPWLgROsy9VXqK1s90EuXyoXn-H3kip3rDu1nUeFQS2JWt21bfo7Qg/exec') {
+      if(API_URL === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
         showToast("Error: API_URL not configured.", true);
         return null;
       }
