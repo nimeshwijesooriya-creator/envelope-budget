@@ -1,4 +1,4 @@
-const CACHE_NAME = 'budget-pwa-cache-v3';
+const CACHE_NAME = 'budget-pwa-cache-v4'; // Bumped to v4 to force an update
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -36,7 +36,9 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
+    // ignoreSearch: true is critical! It ensures that if the browser adds 
+    // query parameters like ?utm_source=homescreen, it still finds the cached file.
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
       if (cachedResponse) return cachedResponse;
       
       // If not in cache, fetch from network
