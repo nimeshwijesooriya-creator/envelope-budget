@@ -115,7 +115,7 @@
     // =========================================================================
     // CONFIGURATION - PASTE YOUR APPS SCRIPT WEB APP URL HERE
     // =========================================================================
-    const API_URL = 'https://script.google.com/macros/s/AKfycbz9bQ0eLxtnZUDfPPWLgROsy9VXqK1s90EuXyoXn-H3kip3rDu1nUeFQS2JWt21bfo7Qg/exec';
+    const API_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
     
     // State
     let envelopes = [];
@@ -147,7 +147,7 @@
     // Register Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
+        navigator.serviceWorker.register('./sw.js')
           .then(reg => console.log('Service Worker registered successfully'))
           .catch(err => console.error('Service Worker registration failed:', err));
       });
@@ -180,6 +180,38 @@
       if(id === 'transaction-modal') {
         document.getElementById('tx-amount').value = '';
         document.getElementById('tx-remark').value = ''; // Clear remark input on close
+      }
+    }
+
+    // =========================================================================
+    // API COMMUNICATION
+    // =========================================================================
+    async function apiRequest(action, data = {}) {
+      if(API_URL === 'https://script.google.com/macros/s/AKfycbz9bQ0eLxtnZUDfPPWLgROsy9VXqK1s90EuXyoXn-H3kip3rDu1nUeFQS2JWt21bfo7Qg/exec') {
+        showToast("Error: API_URL not configured.", true);
+        return null;
+      }
+      
+      try {
+        const payload = JSON.stringify({ action, data });
+        
+        // Using 'text/plain' to bypass complex CORS preflight issues
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+          body: payload,
+          redirect: 'follow'
+        });
+        
+        const result = await response.json();
+        if(result.success) return result.data;
+        
+        showToast(result.error || "An API error occurred", true);
+        return null;
+      } catch (error) {
+        showToast("Network Error: Could not connect to database.", true);
+        console.error(error);
+        return null;
       }
     }
 
