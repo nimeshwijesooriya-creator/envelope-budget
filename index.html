@@ -40,8 +40,9 @@
       </div>
       
       <!-- Hidden by default, shown via JS if PWA criteria met -->
-      <button id="installAppBtn" class="hidden bg-white text-emerald-700 px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm active:scale-95 transition-transform touch-action-manipulation">
-        Install App
+      <button id="downloadPwaBtn" class="hidden bg-white text-emerald-700 px-4 py-2 rounded-full text-sm font-bold shadow-md active:scale-95 transition-transform touch-action-manipulation flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Download App
       </button>
     </div>
   </header>
@@ -124,7 +125,7 @@
     // PWA & INSTALL BUTTON LOGIC
     // =========================================================================
     let deferredPrompt;
-    const installBtn = document.getElementById('installAppBtn');
+    const installBtn = document.getElementById('downloadPwaBtn');
 
     window.addEventListener('beforeinstallprompt', (e) => {
       // Prevent the mini-infobar from appearing on mobile
